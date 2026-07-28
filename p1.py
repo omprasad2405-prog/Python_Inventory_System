@@ -2,18 +2,24 @@
 inventory = {
     "101": {"name": "Wireless Mouse", "price": 499.0, "quantity": 12, "category": "Electronics"},
     "102": {"name": "USB-C Cable", "price": 299.0, "quantity": 3, "category": "Electronics"},
-    "103": {"name": "Notebook", "price": 80.0, "quantity": 25, "category": "Stationery"}
+    "103": {"name": "Notebook", "price": 80.0, "quantity": 25, "category": "Stationery"},
+    "104": {"name": "Gaming Headphones", "price": 1499.0, "quantity": 5, "category": "Electronics"}
 }
+
+
+def display_table(items_dict):
+    """Helper function to print formatted tables"""
+    print("\n" + "=" * 55)
+    print(f"{'ID':<6} | {'Product Name':<20} | {'Price (₹)':<10} | {'Stock':<6}")
+    print("=" * 55)
+    for prod_id, info in items_dict.items():
+        print(f"{prod_id:<6} | {info['name']:<20} | ₹{info['price']:<9.2f} | {info['quantity']:<6}")
+    print("=" * 55)
 
 
 def display_inventory():
     """Component 1: View All Stock"""
-    print("\n" + "=" * 55)
-    print(f"{'ID':<6} | {'Product Name':<20} | {'Price (₹)':<10} | {'Stock':<6}")
-    print("=" * 55)
-    for prod_id, info in inventory.items():
-        print(f"{prod_id:<6} | {info['name']:<20} | ₹{info['price']:<9.2f} | {info['quantity']:<6}")
-    print("=" * 55)
+    display_table(inventory)
 
 
 def add_product():
@@ -49,7 +55,7 @@ def check_low_stock(threshold=5):
     found = False
     for prod_id, info in inventory.items():
         if info['quantity'] < threshold:
-            print(f"⚠️  ALERT: {info['name']} (ID: {prod_id}) - Only {info['quantity']} left!")
+            print(f"⚠️ ALERT: {info['name']} (ID: {prod_id}) - Only {info['quantity']} left!")
             found = True
     if not found:
         print("✅ All items have sufficient stock.")
@@ -75,7 +81,6 @@ def generate_bill():
         print(f"❌ Not enough stock! Only {current_stock} available.")
         return
 
-    # Process Purchase
     inventory[prod_id]['quantity'] -= buy_qty
     total_cost = buy_qty * inventory[prod_id]['price']
 
@@ -90,17 +95,64 @@ def generate_bill():
     print("✅ Purchase complete! Inventory updated.")
 
 
+# ==================== NEW PHASE 1 FEATURES ====================
+
+def search_products():
+    """NEW FEATURE: Search by Name or Category"""
+    print("\n--- Search Inventory ---")
+    term = input("Enter product name or category to search: ").strip().lower()
+
+    # Filter dictionary based on search term
+    results = {}
+    for prod_id, info in inventory.items():
+        if term in info['name'].lower() or term in info['category'].lower():
+            results[prod_id] = info
+
+    if results:
+        print(f"\n🔍 Found {len(results)} matching item(s):")
+        display_table(results)
+    else:
+        print("❌ No matching products found.")
+
+
+def sort_inventory():
+    """NEW FEATURE: Sort items by Price or Quantity"""
+    print("\n--- Sort Options ---")
+    print("1. Sort by Price (Low to High)")
+    print("2. Sort by Quantity (Low to High)")
+    choice = input("Select sort option (1-2): ").strip()
+
+    if choice == "1":
+        # Sort items tuple list by price
+        sorted_tuples = sorted(inventory.items(), key=lambda item: item[1]['price'])
+        sorted_dict = dict(sorted_tuples)
+        print("\n📈 Inventory Sorted by Price (Low to High):")
+        display_table(sorted_dict)
+    elif choice == "2":
+        # Sort items tuple list by quantity
+        sorted_tuples = sorted(inventory.items(), key=lambda item: item[1]['quantity'])
+        sorted_dict = dict(sorted_tuples)
+        print("\n📉 Inventory Sorted by Quantity (Low to High):")
+        display_table(sorted_dict)
+    else:
+        print("❌ Invalid sort option.")
+
+
+# ==============================================================
+
 # --- MAIN PROGRAM LOOP ---
 def main():
     while True:
-        print("\n=== INVENTORY MANAGEMENT SYSTEM ===")
+        print("\n=== INVENTORY MANAGEMENT SYSTEM (v1.1) ===")
         print("1. View All Products")
         print("2. Add New Product")
         print("3. Check Low Stock Warnings")
         print("4. Process Customer Sale / Bill")
-        print("5. Exit")
+        print("5. Search Products (New!)")
+        print("6. Sort Inventory (New!)")
+        print("7. Exit")
 
-        choice = input("Enter your choice (1-5): ").strip()
+        choice = input("Enter your choice (1-7): ").strip()
 
         if choice == "1":
             display_inventory()
@@ -111,10 +163,14 @@ def main():
         elif choice == "4":
             generate_bill()
         elif choice == "5":
+            search_products()
+        elif choice == "6":
+            sort_inventory()
+        elif choice == "7":
             print("\nExiting program... Goodbye!")
             break
         else:
-            print("❌ Invalid choice! Please enter a number between 1 and 5.")
+            print("❌ Invalid choice! Please enter a number between 1 and 7.")
 
 
 if __name__ == "__main__":
