@@ -33,7 +33,7 @@ A feature-rich, command-line-based Inventory Management Application built with P
    cd path/to/your/project
 
 **Run the application:**
-python inventory.py
+python p1.py
 
 **Sample Menu Overview**
 === INVENTORY MANAGEMENT SYSTEM (v1.1) ===
