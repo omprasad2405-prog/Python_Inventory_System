@@ -6,6 +6,9 @@ inventory = {
     "104": {"name": "Gaming Headphones", "price": 1499.0, "quantity": 5, "category": "Electronics"}
 }
 
+# NEW: Transaction History Storage
+sales_history = []
+
 
 def display_table(items_dict):
     """Helper function to print formatted tables"""
@@ -62,7 +65,7 @@ def check_low_stock(threshold=5):
 
 
 def generate_bill():
-    """Component 4: Customer Checkout Simulator"""
+    """Component 4: Customer Checkout & Sale Logging"""
     print("\n--- Customer Checkout ---")
     prod_id = input("Enter Product ID to buy: ").strip()
 
@@ -81,28 +84,34 @@ def generate_bill():
         print(f"❌ Not enough stock! Only {current_stock} available.")
         return
 
+    # Process Purchase
     inventory[prod_id]['quantity'] -= buy_qty
     total_cost = buy_qty * inventory[prod_id]['price']
+    item_name = inventory[prod_id]['name']
+
+    # NEW: Log transaction details
+    sales_history.append({
+        "item": item_name,
+        "quantity": buy_qty,
+        "total": total_cost
+    })
 
     print("\n" + "-" * 30)
     print("      RECEIPT SUMMARY      ")
     print("-" * 30)
-    print(f"Item: {inventory[prod_id]['name']}")
+    print(f"Item: {item_name}")
     print(f"Quantity: {buy_qty}")
     print(f"Price per unit: ₹{inventory[prod_id]['price']}")
     print(f"Total Amount: ₹{total_cost:.2f}")
     print("-" * 30)
-    print("✅ Purchase complete! Inventory updated.")
+    print("✅ Purchase complete! Sale recorded.")
 
-
-# ==================== NEW PHASE 1 FEATURES ====================
 
 def search_products():
-    """NEW FEATURE: Search by Name or Category"""
+    """Search by Name or Category"""
     print("\n--- Search Inventory ---")
     term = input("Enter product name or category to search: ").strip().lower()
 
-    # Filter dictionary based on search term
     results = {}
     for prod_id, info in inventory.items():
         if term in info['name'].lower() or term in info['category'].lower():
@@ -116,43 +125,65 @@ def search_products():
 
 
 def sort_inventory():
-    """NEW FEATURE: Sort items by Price or Quantity"""
+    """Sort items by Price or Quantity"""
     print("\n--- Sort Options ---")
     print("1. Sort by Price (Low to High)")
     print("2. Sort by Quantity (Low to High)")
     choice = input("Select sort option (1-2): ").strip()
 
     if choice == "1":
-        # Sort items tuple list by price
         sorted_tuples = sorted(inventory.items(), key=lambda item: item[1]['price'])
-        sorted_dict = dict(sorted_tuples)
         print("\n📈 Inventory Sorted by Price (Low to High):")
-        display_table(sorted_dict)
+        display_table(dict(sorted_tuples))
     elif choice == "2":
-        # Sort items tuple list by quantity
         sorted_tuples = sorted(inventory.items(), key=lambda item: item[1]['quantity'])
-        sorted_dict = dict(sorted_tuples)
         print("\n📉 Inventory Sorted by Quantity (Low to High):")
-        display_table(sorted_dict)
+        display_table(dict(sorted_tuples))
     else:
         print("❌ Invalid sort option.")
 
 
-# ==============================================================
+# ==================== NEW PHASE 1.2 FEATURE ====================
+
+def view_sales_analytics():
+    """NEW FEATURE: Sales History & Revenue Dashboard"""
+    print("\n--- Sales Analytics Dashboard ---")
+
+    if not sales_history:
+        print("ℹ️ No transactions recorded yet.")
+        return
+
+    total_revenue = sum(sale['total'] for sale in sales_history)
+    total_units_sold = sum(sale['quantity'] for sale in sales_history)
+
+    print("\n" + "=" * 45)
+    print(f"{'Item Sold':<20} | {'Qty':<5} | {'Total (₹)':<10}")
+    print("=" * 45)
+    for sale in sales_history:
+        print(f"{sale['item']:<20} | {sale['quantity']:<5} | ₹{sale['total']:<10.2f}")
+    print("=" * 45)
+
+    print(f"📊 Total Transactions: {len(sales_history)}")
+    print(f"📦 Total Units Sold:  {total_units_sold}")
+    print(f"💰 Total Revenue:     ₹{total_revenue:.2f}")
+
+
+# ===============================================================
 
 # --- MAIN PROGRAM LOOP ---
 def main():
     while True:
-        print("\n=== INVENTORY MANAGEMENT SYSTEM (v1.1) ===")
+        print("\n=== INVENTORY MANAGEMENT SYSTEM (v1.2) ===")
         print("1. View All Products")
         print("2. Add New Product")
         print("3. Check Low Stock Warnings")
         print("4. Process Customer Sale / Bill")
-        print("5. Search Products (New!)")
-        print("6. Sort Inventory (New!)")
-        print("7. Exit")
+        print("5. Search Products")
+        print("6. Sort Inventory")
+        print("7. View Sales Analytics (New!)")
+        print("8. Exit")
 
-        choice = input("Enter your choice (1-7): ").strip()
+        choice = input("Enter your choice (1-8): ").strip()
 
         if choice == "1":
             display_inventory()
@@ -167,10 +198,12 @@ def main():
         elif choice == "6":
             sort_inventory()
         elif choice == "7":
+            view_sales_analytics()
+        elif choice == "8":
             print("\nExiting program... Goodbye!")
             break
         else:
-            print("❌ Invalid choice! Please enter a number between 1 and 7.")
+            print("❌ Invalid choice! Please enter a number between 1 and 8.")
 
 
 if __name__ == "__main__":
