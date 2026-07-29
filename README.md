@@ -17,7 +17,7 @@ A feature-rich, command-line-based Inventory Management Application built with P
 
 ## 🛠️ Project Structure
 
-* **`inventory.py`**: Main application code containing all data structures, functions, and the interactive terminal CLI loop.
+* **`p1.py`**: Main application code containing all data structures, functions, and the interactive terminal CLI loop.
 
 ---
 
