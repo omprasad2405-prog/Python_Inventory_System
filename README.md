@@ -1,46 +1,51 @@
-# 📦 Inventory Management System (CLI)
+# 📦 Python Inventory System
 
-A feature-rich, command-line-based Inventory Management Application built with Python. Designed for small retail or stationery businesses to efficiently manage stock, track warnings, handle customer checkout, and perform search and sorting operations.
-
----
-
-## 🌟 Key Features
-
-* **📋 Stock Display:** Formatted ASCII tabular output to clearly view Product IDs, Names, Prices, and Quantities.
-* **➕ Add Products:** Easily insert new products with built-in validation for duplicate IDs and data types.
-* **⚠️ Low-Stock Alerts:** Automatically flags products falling below a specified inventory threshold (default `< 5`).
-* **🧾 Customer Checkout Simulator:** Generates bill receipts, calculates total purchase costs, and dynamically decrements stock upon purchase.
-* **🔍 Search Functionality:** Filter inventory items dynamically by matching Product Name or Category keywords.
-* **📈 Sorting Options:** Sort inventory dynamically by Price (Low to High) or Quantity (Low to High).
+A cloud-connected inventory management system built with Python and Supabase.
 
 ---
 
-## 🛠️ Project Structure
-
-* **`p1.py`**: Main application code containing all data structures, functions, and the interactive terminal CLI loop.
+## 🚀 Features
+- **Cloud Database Integration:** Real-time data storage powered by Supabase (PostgreSQL).
+- **Secure Credentials:** Environment variables managed via `python-dotenv` and ignored by Git.
+- **Clean Architecture:** Standardized CRUD operations for managing product inventory.
 
 ---
 
-## 🚀 Getting Started
+## 🛠️ Tech Stack
+- **Language:** Python 3.x
+- **Database:** Supabase Cloud (PostgreSQL)
+- **Version Control:** Git & GitHub
 
-### Prerequisites
-* Python 3.x installed on your computer.
+---
 
-### How to Run
-1. Open your terminal or command prompt.
-2. Navigate to the project directory:
+## ⚙️ Setup & Installation
+
+1. **Clone the repository:**
    ```bash
-   cd path/to/your/project
+git clone [https://github.com/omprasad2405-prog/Python_Inventory_System.git](https://github.com/omprasad2405-prog/Python_Inventory_System.git)
+cd Python_Inventory_System
 
-**Run the application:**
-python p1.py
+2.  **Install dependencies:**
 
-**Sample Menu Overview**
-=== INVENTORY MANAGEMENT SYSTEM (v1.1) ===
-1. View All Products
-2. Add New Product
-3. Check Low Stock Warnings
-4. Process Customer Sale / Bill
-5. Search Products
-6. Sort Inventory
-7. Exit
+    Bash
+    pip install supabase python-dotenv
+    
+   (i) Configure Environment Variables:
+       Create a .env file in the root directory based on .env.example:
+
+   Code snippet
+     SUPABASE_URL=your_supabase_project_url
+     SUPABASE_KEY=your_supabase_anon_key
+      
+   (ii) Run the Application:
+
+   Bash
+    python inventory.py
+
+3. ### How to Commit and Push your Updated README
+
+   Once you paste and save the updated text in `README.md`, run these 3 commands in your VS Code terminal to sync it with GitHub:
+       ```powershell
+   git add README.md
+   git commit -m "docs: update README with Supabase setup and project overview"
+   git push origin main
