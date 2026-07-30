@@ -1,16 +1,38 @@
+import os
+from dotenv import load_dotenv
 from supabase import create_client, Client
 
-# --- SUPABASE CLOUD CREDENTIALS ---
-# Replace these strings with your actual credentials from Supabase Dashboard
-SUPABASE_URL = "YOUR_SUPABASE_URL_HERE"
-SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY_HERE"
+# 1. Load the secrets from .env into memory
+load_dotenv()
 
-# Initialize Cloud Client
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# 2. Grab the environment variables
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+# --- DIAGNOSTIC LOGS ---
+print("=" * 40)
+print("🔍 DEBUG CHECK:")
+print(f"URL found: {repr(SUPABASE_URL)}")
+print(f"KEY found: {repr(SUPABASE_KEY)}")
+print("=" * 40 + "\n")
+
+# 3. Check if credentials are present
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print("❌ Missing Supabase credentials!")
+    print("👉 Please ensure you have a file named EXACTLY '.env' in your main folder.")
+    print("👉 Format inside .env must be:\nSUPABASE_URL=https://...\nSUPABASE_KEY=eyJ...")
+    exit()
+
+# 4. Initialize Supabase Cloud Client
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+except Exception as err:
+    print(f"❌ Failed to initialize Supabase client: {err}")
+    exit()
 
 
 def display_table(items_list):
-    """Helper function to print formatted tables from cloud data"""
+    """Prints formatted table from cloud data"""
     print("\n" + "=" * 55)
     print(f"{'ID':<6} | {'Product Name':<20} | {'Price (₹)':<10} | {'Stock':<6}")
     print("=" * 55)
@@ -20,7 +42,7 @@ def display_table(items_list):
 
 
 def display_inventory():
-    """Fetch and view all items directly from the Cloud Database"""
+    """Fetch items directly from Supabase Cloud"""
     try:
         response = supabase.table("inventory").select("*").execute()
         items = response.data
@@ -33,7 +55,7 @@ def display_inventory():
 
 
 def add_product():
-    """Add a new product directly to the Cloud Database"""
+    """Add a new product to Supabase Cloud"""
     print("\n--- Add New Product (Cloud) ---")
     prod_id = input("Enter Product ID: ").strip()
     name = input("Enter Product Name: ").strip()
@@ -62,11 +84,10 @@ def add_product():
 
 
 def generate_bill():
-    """Update stock in real-time on the Cloud Database"""
+    """Update stock in real-time on Supabase Cloud"""
     print("\n--- Customer Checkout (Cloud Sync) ---")
     prod_id = input("Enter Product ID to buy: ").strip()
 
-    # Fetch product from cloud
     try:
         response = supabase.table("inventory").select("*").eq("id", prod_id).execute()
         items = response.data
@@ -84,7 +105,6 @@ def generate_bill():
 
         new_qty = product['quantity'] - buy_qty
 
-        # Update quantity on the cloud server
         supabase.table("inventory").update({"quantity": new_qty}).eq("id", prod_id).execute()
 
         total_cost = buy_qty * product['price']
