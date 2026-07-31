@@ -9,18 +9,10 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-# --- DIAGNOSTIC LOGS ---
-print("=" * 40)
-print("🔍 DEBUG CHECK:")
-print(f"URL found: {repr(SUPABASE_URL)}")
-print(f"KEY found: {repr(SUPABASE_KEY)}")
-print("=" * 40 + "\n")
-
 # 3. Check if credentials are present
 if not SUPABASE_URL or not SUPABASE_KEY:
     print("❌ Missing Supabase credentials!")
     print("👉 Please ensure you have a file named EXACTLY '.env' in your main folder.")
-    print("👉 Format inside .env must be:\nSUPABASE_URL=https://...\nSUPABASE_KEY=eyJ...")
     exit()
 
 # 4. Initialize Supabase Cloud Client
@@ -121,15 +113,59 @@ def generate_bill():
         print(f"❌ Transaction failed: {e}")
 
 
+def delete_product():
+    """Delete a product permanently from Supabase Cloud"""
+    print("\n--- Delete Product (Cloud) ---")
+    prod_id = input("Enter Product ID to delete: ").strip()
+
+    try:
+        response = supabase.table("inventory").select("*").eq("id", prod_id).execute()
+        items = response.data
+
+        if not items:
+            print("❌ Product not found in cloud database!")
+            return
+
+        product = items[0]
+        confirm = input(f"⚠️ Are you sure you want to delete '{product['name']}'? (y/n): ").strip().lower()
+
+        if confirm == 'y':
+            supabase.table("inventory").delete().eq("id", prod_id).execute()
+            print(f"✅ Success: '{product['name']}' removed from cloud database!")
+        else:
+            print("ℹ️ Deletion canceled.")
+
+    except Exception as e:
+        print(f"❌ Error deleting item: {e}")
+
+
+def check_low_stock():
+    """Fetch products where stock is below threshold (quantity < 5)"""
+    print("\n--- Low Stock Alerts (< 5 items) ---")
+    try:
+        response = supabase.table("inventory").select("*").lt("quantity", 5).execute()
+        items = response.data
+
+        if items:
+            print("⚠️ Warning: The following items need restocking!")
+            display_table(items)
+        else:
+            print("✅ All items have sufficient stock level (5 or more).")
+    except Exception as e:
+        print(f"❌ Error checking low stock: {e}")
+
+
 def main():
     while True:
         print("\n=== CLOUD INVENTORY MANAGEMENT (Supabase v2.0) ===")
-        print("1. View All Products (from Cloud)")
-        print("2. Add New Product (to Cloud)")
-        print("3. Process Sale & Update Cloud Stock")
-        print("4. Exit")
+        print("1. View All Products")
+        print("2. Add New Product")
+        print("3. Process Sale & Update Stock")
+        print("4. Delete Product")
+        print("5. Check Low-Stock Alerts")
+        print("6. Exit")
 
-        choice = input("Enter choice (1-4): ").strip()
+        choice = input("Enter choice (1-6): ").strip()
 
         if choice == "1":
             display_inventory()
@@ -138,10 +174,14 @@ def main():
         elif choice == "3":
             generate_bill()
         elif choice == "4":
+            delete_product()
+        elif choice == "5":
+            check_low_stock()
+        elif choice == "6":
             print("\nExiting cloud application... Goodbye!")
             break
         else:
-            print("❌ Invalid choice.")
+            print("❌ Invalid choice. Please enter a number between 1 and 6.")
 
 
 if __name__ == "__main__":
