@@ -1,21 +1,22 @@
 import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from tabulate import tabulate
 
-# 1. Load the secrets from .env into memory
+# 1. Load secrets from .env file
 load_dotenv()
 
-# 2. Grab the environment variables
+# 2. Retrieve credentials
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-# 3. Check if credentials are present
+# 3. Security Check: Ensure environment variables exist
 if not SUPABASE_URL or not SUPABASE_KEY:
     print("❌ Missing Supabase credentials!")
     print("👉 Please ensure you have a file named EXACTLY '.env' in your main folder.")
     exit()
 
-# 4. Initialize Supabase Cloud Client
+# 4. Initialize Supabase Client
 try:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 except Exception as err:
@@ -24,13 +25,19 @@ except Exception as err:
 
 
 def display_table(items_list):
-    """Prints formatted table from cloud data"""
-    print("\n" + "=" * 55)
-    print(f"{'ID':<6} | {'Product Name':<20} | {'Price (₹)':<10} | {'Stock':<6}")
-    print("=" * 55)
+    """Prints formatted ASCII table from cloud data using tabulate"""
+    formatted_data = []
     for item in items_list:
-        print(f"{item['id']:<6} | {item['name']:<20} | ₹{item['price']:<9.2f} | {item['quantity']:<6}")
-    print("=" * 55)
+        formatted_data.append([
+            item['id'],
+            item['name'],
+            f"₹{item['price']:.2f}",
+            item['quantity'],
+            item.get('category', 'N/A')
+        ])
+
+    headers = ["ID", "Product Name", "Price", "Stock", "Category"]
+    print("\n" + tabulate(formatted_data, headers=headers, tablefmt="fancy_grid"))
 
 
 def display_inventory():
@@ -57,7 +64,7 @@ def add_product():
         quantity = int(input("Enter Quantity: "))
         category = input("Enter Category: ").strip()
     except ValueError:
-        print("❌ Invalid price or quantity.")
+        print("❌ Invalid price or quantity. Must be numbers.")
         return
 
     new_item = {
@@ -100,13 +107,12 @@ def generate_bill():
         supabase.table("inventory").update({"quantity": new_qty}).eq("id", prod_id).execute()
 
         total_cost = buy_qty * product['price']
-        print("\n" + "-" * 30)
-        print("      RECEIPT SUMMARY      ")
-        print("-" * 30)
-        print(f"Item: {product['name']}")
-        print(f"Quantity: {buy_qty}")
-        print(f"Total Amount: ₹{total_cost:.2f}")
-        print("-" * 30)
+        
+        receipt_data = [[product['name'], buy_qty, f"₹{product['price']:.2f}", f"₹{total_cost:.2f}"]]
+        receipt_headers = ["Item Name", "Qty", "Unit Price", "Total Cost"]
+        
+        print("\n" + "=" * 25 + " RECEIPT SUMMARY " + "=" * 25)
+        print(tabulate(receipt_data, headers=receipt_headers, tablefmt="grid"))
         print("✅ Cloud database updated in real-time!")
 
     except Exception as e:
