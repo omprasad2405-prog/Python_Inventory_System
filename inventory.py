@@ -1,3 +1,4 @@
+import csv
 import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -107,10 +108,10 @@ def generate_bill():
         supabase.table("inventory").update({"quantity": new_qty}).eq("id", prod_id).execute()
 
         total_cost = buy_qty * product['price']
-        
+
         receipt_data = [[product['name'], buy_qty, f"₹{product['price']:.2f}", f"₹{total_cost:.2f}"]]
         receipt_headers = ["Item Name", "Qty", "Unit Price", "Total Cost"]
-        
+
         print("\n" + "=" * 25 + " RECEIPT SUMMARY " + "=" * 25)
         print(tabulate(receipt_data, headers=receipt_headers, tablefmt="grid"))
         print("✅ Cloud database updated in real-time!")
@@ -161,6 +162,39 @@ def check_low_stock():
         print(f"❌ Error checking low stock: {e}")
 
 
+def export_to_csv():
+    """Fetch cloud data and export it into a local inventory_report.csv file"""
+    print("\n--- Export Inventory to CSV ---")
+    try:
+        response = supabase.table("inventory").select("*").execute()
+        items = response.data
+
+        if not items:
+            print("ℹ️ No data to export. Cloud database is empty.")
+            return
+
+        filename = "inventory_report.csv"
+
+        with open(filename, mode="w", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file)
+            writer.writerow(["ID", "Product Name", "Price (₹)", "Stock", "Category"])
+
+            for item in items:
+                writer.writerow([
+                    item['id'],
+                    item['name'],
+                    item['price'],
+                    item['quantity'],
+                    item.get('category', 'N/A')
+                ])
+
+        print(f"✅ Success! Report exported locally as '{filename}'.")
+        print("👉 You can now open this file in Excel or Google Sheets!")
+
+    except Exception as e:
+        print(f"❌ Error exporting to CSV: {e}")
+
+
 def main():
     while True:
         print("\n=== CLOUD INVENTORY MANAGEMENT (Supabase v2.0) ===")
@@ -169,9 +203,10 @@ def main():
         print("3. Process Sale & Update Stock")
         print("4. Delete Product")
         print("5. Check Low-Stock Alerts")
-        print("6. Exit")
+        print("6. Export Inventory to CSV Report")
+        print("7. Exit")
 
-        choice = input("Enter choice (1-6): ").strip()
+        choice = input("Enter choice (1-7): ").strip()
 
         if choice == "1":
             display_inventory()
@@ -184,10 +219,12 @@ def main():
         elif choice == "5":
             check_low_stock()
         elif choice == "6":
+            export_to_csv()
+        elif choice == "7":
             print("\nExiting cloud application... Goodbye!")
             break
         else:
-            print("❌ Invalid choice. Please enter a number between 1 and 6.")
+            print("❌ Invalid choice. Please enter a number between 1 and 7.")
 
 
 if __name__ == "__main__":
