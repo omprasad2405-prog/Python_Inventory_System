@@ -21,7 +21,6 @@ A cloud-connected inventory management system built with Python and Supabase.
 ## ⚙️ Setup & Installation
 
 1. **Clone the repository:**
-   ```bash
 git clone [https://github.com/omprasad2405-prog/Python_Inventory_System.git](https://github.com/omprasad2405-prog/Python_Inventory_System.git)
 cd Python_Inventory_System
 
