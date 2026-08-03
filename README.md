@@ -25,8 +25,6 @@ git clone [https://github.com/omprasad2405-prog/Python_Inventory_System.git](htt
 cd Python_Inventory_System
 
 2.  **Install dependencies:**
-
-    Bash
     pip install supabase python-dotenv
     
    (i) Configure Environment Variables:
@@ -37,9 +35,7 @@ cd Python_Inventory_System
      SUPABASE_KEY=your_supabase_anon_key
       
    (ii) Run the Application:
-
-   Bash
-    python inventory.py
+        python inventory.py
 
 3. ### How to Commit and Push your Updated README
 
