@@ -1,46 +1,46 @@
-# 📦 Python Inventory System
+# 📦 Cloud Inventory Management System
 
-A cloud-connected inventory management system built with Python and Supabase.
+A full-stack Inventory Management System featuring a **Streamlit Web Dashboard**, a **Python CLI terminal interface**, and a **Supabase PostgreSQL Cloud Database**. 
+
+🚀 **Live Demo:** [Open Web Application](https://pythoninventorysystem.streamlit.app/)) 
 
 ---
 
-## 🚀 Features
-- **Cloud Database Integration:** Real-time data storage powered by Supabase (PostgreSQL).
-- **Secure Credentials:** Environment variables managed via `python-dotenv` and ignored by Git.
-- **Clean Architecture:** Standardized CRUD operations for managing product inventory.
+## 📌 Project Overview
+
+This project provides a real-time inventory management tool built using Python and modern cloud infrastructure:
+
+- **Real-Time Cloud Sync:** All stock additions, sales updates, and deletions reflect instantly across both the web app and terminal interface.
+- **Automated Sales & Stock Management:** Automatically verifies remaining quantity during checkout and updates database records in real time.
+- **Low-Stock Warnings:** Highlights items falling below minimum stock thresholds (under 5 units).
+- **Data Export:** Exports cloud database records directly into `.csv` spreadsheet reports.
+
+---
+
+## 🏗️ Build Your Own Version (How It Works)
+
+If you want to build a similar project for your portfolio, here is the architecture:
+
+1. **Database Setup:**
+   - Create a free account at [Supabase](https://supabase.com/).
+   - Create a table named `inventory` with the columns: `id` (text/int), `name` (text), `price` (float), `quantity` (int), and `category` (text).
+
+2. **Backend & CLI:**
+   - Use `supabase-py` to connect Python script handles (`inventory.py`) for CRUD operations.
+   - Use `python-dotenv` to keep your `SUPABASE_URL` and `SUPABASE_KEY` secure in a `.env` file.
+
+3. **Web Dashboard:**
+   - Build an interactive frontend UI with [Streamlit](https://streamlit.io/) (`app.py`).
+
+4. **Free Cloud Deployment:**
+   - Push your code to a GitHub repository (excluding your `.env` file).
+   - Link your repository to [Streamlit Community Cloud](https://share.streamlit.io/) to get a free live web URL.
 
 ---
 
 ## 🛠️ Tech Stack
+
+- **Frontend:** Streamlit
+- **Database:** Supabase (PostgreSQL)
 - **Language:** Python 3.x
-- **Database:** Supabase Cloud (PostgreSQL)
-- **Version Control:** Git & GitHub
-
----
-
-## ⚙️ Setup & Installation
-
-1. **Clone the repository:**
-git clone [https://github.com/omprasad2405-prog/Python_Inventory_System.git](https://github.com/omprasad2405-prog/Python_Inventory_System.git)
-cd Python_Inventory_System
-
-2.  **Install dependencies:**
-    pip install supabase python-dotenv
-    
-   (i) Configure Environment Variables:
-       Create a .env file in the root directory based on .env.example:
-
-   Code snippet
-     SUPABASE_URL=your_supabase_project_url
-     SUPABASE_KEY=your_supabase_anon_key
-      
-   (ii) Run the Application:
-        python inventory.py
-
-3. ### How to Commit and Push your Updated README
-
-   Once you paste and save the updated text in `README.md`, run these 3 commands in your VS Code terminal to sync it with GitHub:
-       ```powershell
-   git add README.md
-   git commit -m "docs: update README with Supabase setup and project overview"
-   git push origin main
+- **Libraries:** `supabase`, `pandas`, `tabulate`, `python-dotenv`
