@@ -4,6 +4,7 @@ A full-stack Inventory Management System featuring a **Streamlit Web Dashboard**
 
 🚀 **Live Demo:** [Open Web Application](https://pythoninventorysystem.streamlit.app/)) 
 
+
 ---
 
 ## 📌 Project Overview
@@ -16,6 +17,7 @@ This project provides a real-time inventory management tool built using Python a
 - **Data Export:** Exports cloud database records directly into `.csv` spreadsheet reports.
 
 ---
+
 
 ## 🏗️ Build Your Own Version (How It Works)
 
@@ -37,6 +39,7 @@ If you want to build a similar project for your portfolio, here is the architect
    - Link your repository to [Streamlit Community Cloud](https://share.streamlit.io/) to get a free live web URL.
 
 ---
+
 
 ## 🛠️ Tech Stack
 
