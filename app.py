@@ -1,4 +1,5 @@
 import os
+import io
 import streamlit as st
 import pandas as pd
 from supabase import create_client
@@ -58,114 +59,215 @@ else:
         st.rerun()
 
 # --- MAIN DASHBOARD AREA ---
-st.title("📦 Python Inventory System")
+st.title("📦 Python Inventory Management System")
+
+# Helper to fetch current cloud inventory
+def get_cloud_inventory():
+    try:
+        res = supabase.table("inventory").select("*").eq("user_id", st.session_state.user.id).execute()
+        df = pd.DataFrame(res.data)
+        if not df.empty:
+            cols = [c for c in ["id", "name", "category", "price", "quantity"] if c in df.columns]
+            return df[cols]
+        return pd.DataFrame(columns=["id", "name", "price", "quantity", "category"])
+    except Exception as e:
+        st.error(f"Error fetching data: {e}")
+        return pd.DataFrame(columns=["id", "name", "price", "quantity", "category"])
+
+# Determine active dataframe based on login state
+is_logged_in = st.session_state.user is not None
+
+if is_logged_in:
+    inventory_df = get_cloud_inventory()
+    st.caption("☁️ Operating on **Supabase Cloud Database**")
+else:
+    inventory_df = st.session_state.guest_inventory
+    st.caption("🧪 Operating in **Temporary Guest RAM**")
+
+# Migration Option for Guests Logging In
+if is_logged_in and not st.session_state.guest_inventory.empty:
+    if st.button("📥 Import Temporary Guest Items to Your Cloud Account"):
+        for _, row in st.session_state.guest_inventory.iterrows():
+            try:
+                supabase.table("inventory").insert({
+                    "id": str(row["id"]),
+                    "name": row["name"],
+                    "price": float(row["price"]),
+                    "quantity": int(row["quantity"]),
+                    "category": row["category"],
+                    "user_id": st.session_state.user.id
+                }).execute()
+            except Exception as e:
+                st.error(f"Failed to migrate '{row['name']}': {e}")
+        st.session_state.guest_inventory = pd.DataFrame(columns=["id", "name", "price", "quantity", "category"])
+        st.success("Guest items migrated into Cloud!")
+        st.rerun()
+
+# --- NAVIGATION TABS ---
+tab_view, tab_add, tab_sale, tab_update, tab_alerts, tab_export = st.tabs([
+    "📋 View All Products", 
+    "➕ Add Product", 
+    "💰 Process Sale", 
+    "🔄 Update Stock", 
+    "⚠️ Low Stock Alerts", 
+    "📥 Export CSV"
+])
 
 # ==========================================
-# MODE 1: GUEST MODE (Temporary Memory Only)
+# TAB 1: VIEW ALL PRODUCTS
 # ==========================================
-if st.session_state.user is None:
-    st.subheader("🧪 Guest Workspace")
-    st.caption("Data added here stays in browser RAM memory and will NOT save to Supabase.")
+with tab_view:
+    st.subheader("Current Stock Inventory")
+    if not inventory_df.empty:
+        search_query = st.text_input("🔍 Search products by name or category")
+        filtered_df = inventory_df
+        if search_query:
+            filtered_df = inventory_df[
+                inventory_df["name"].astype(str).str.contains(search_query, case=False, na=False) |
+                inventory_df["category"].astype(str).str.contains(search_query, case=False, na=False)
+            ]
+        st.dataframe(filtered_df, use_container_width=True)
+    else:
+        st.info("Inventory is currently empty.")
 
-    with st.form("guest_add_form"):
+# ==========================================
+# TAB 2: ADD PRODUCT
+# ==========================================
+with tab_add:
+    st.subheader("Add New Item")
+    with st.form("add_product_form"):
         col1, col2 = st.columns(2)
         prod_id = col1.text_input("Product ID (e.g. 111)")
         name = col2.text_input("Product Name")
         category = col1.text_input("Category")
-        price = col2.number_input("Price ($)", min_value=0.0)
-        quantity = col1.number_input("Quantity", min_value=0)
+        price = col2.number_input("Price ($)", min_value=0.0, step=0.5)
+        quantity = col1.number_input("Initial Quantity", min_value=0, step=1)
         
-        if st.form_submit_button("Add Temporary Item"):
+        if st.form_submit_button("Add Item"):
             if not name.strip() or not prod_id.strip():
-                st.error("Please enter both Product ID and Product Name.")
+                st.error("Please provide both Product ID and Product Name.")
             else:
-                new_row = pd.DataFrame([{
-                    "id": prod_id, 
-                    "name": name, 
-                    "price": price, 
-                    "quantity": quantity, 
-                    "category": category
-                }])
-                st.session_state.guest_inventory = pd.concat([st.session_state.guest_inventory, new_row], ignore_index=True)
-                st.success(f"Added '{name}' to temporary memory!")
+                if is_logged_in:
+                    try:
+                        supabase.table("inventory").insert({
+                            "id": str(prod_id),
+                            "name": name,
+                            "price": float(price),
+                            "quantity": int(quantity),
+                            "category": category,
+                            "user_id": st.session_state.user.id
+                        }).execute()
+                        st.success(f"Saved '{name}' to your cloud inventory!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Database error: {e}")
+                else:
+                    new_row = pd.DataFrame([{
+                        "id": str(prod_id),
+                        "name": name,
+                        "price": float(price),
+                        "quantity": int(quantity),
+                        "category": category
+                    }])
+                    st.session_state.guest_inventory = pd.concat([st.session_state.guest_inventory, new_row], ignore_index=True)
+                    st.success(f"Added '{name}' to temporary memory!")
+                    st.rerun()
+
+# ==========================================
+# TAB 3: PROCESS SALE
+# ==========================================
+with tab_sale:
+    st.subheader("Process a Sale")
+    if not inventory_df.empty:
+        selected_item = st.selectbox("Select Product to Sell", inventory_df["name"].tolist(), key="sale_item")
+        item_data = inventory_df[inventory_df["name"] == selected_item].iloc[0]
+        current_qty = int(item_data["quantity"])
+        
+        st.write(f"**Available Quantity:** {current_qty} | **Price per unit:** ${float(item_data['price']):.2f}")
+        sale_qty = st.number_input("Quantity Sold", min_value=1, max_value=max(1, current_qty), step=1)
+        
+        if st.button("Complete Sale"):
+            if sale_qty > current_qty:
+                st.error("Not enough stock available!")
+            else:
+                new_qty = current_qty - sale_qty
+                if is_logged_in:
+                    supabase.table("inventory").update({"quantity": new_qty}).eq("id", str(item_data["id"])).eq("user_id", st.session_state.user.id).execute()
+                else:
+                    st.session_state.guest_inventory.loc[st.session_state.guest_inventory["name"] == selected_item, "quantity"] = new_qty
+                
+                total_sale = sale_qty * float(item_data["price"])
+                st.success(f"Sold {sale_qty} x '{selected_item}' for ${total_sale:.2f}!")
+                st.rerun()
+    else:
+        st.info("Add products to inventory before processing sales.")
+
+# ==========================================
+# TAB 4: UPDATE STOCKS & DELETE
+# ==========================================
+with tab_update:
+    st.subheader("Update Stock Levels / Delete Product")
+    if not inventory_df.empty:
+        col_up1, col_up2 = st.columns(2)
+        
+        with col_up1:
+            st.markdown("### 🔄 Restock / Adjust Quantity")
+            update_item = st.selectbox("Select Product", inventory_df["name"].tolist(), key="update_select")
+            item_data = inventory_df[inventory_df["name"] == update_item].iloc[0]
+            new_stock = st.number_input("Set New Quantity", min_value=0, value=int(item_data["quantity"]), step=1)
+            
+            if st.button("Update Stock"):
+                if is_logged_in:
+                    supabase.table("inventory").update({"quantity": int(new_stock)}).eq("id", str(item_data["id"])).eq("user_id", st.session_state.user.id).execute()
+                else:
+                    st.session_state.guest_inventory.loc[st.session_state.guest_inventory["name"] == update_item, "quantity"] = int(new_stock)
+                st.success(f"Updated quantity of '{update_item}' to {new_stock}!")
                 st.rerun()
 
-    # Display Guest Data Table
-    st.dataframe(st.session_state.guest_inventory, use_container_width=True)
+        with col_up2:
+            st.markdown("### 🗑️ Delete Product")
+            delete_item = st.selectbox("Select Product to Delete", inventory_df["name"].tolist(), key="delete_select")
+            if st.button("Delete Selected Product", type="primary"):
+                del_data = inventory_df[inventory_df["name"] == delete_item].iloc[0]
+                if is_logged_in:
+                    supabase.table("inventory").delete().eq("id", str(del_data["id"])).eq("user_id", st.session_state.user.id).execute()
+                else:
+                    st.session_state.guest_inventory = st.session_state.guest_inventory[st.session_state.guest_inventory["name"] != delete_item]
+                st.success(f"Deleted '{delete_item}'")
+                st.rerun()
+    else:
+        st.info("Inventory is empty.")
+
+# ==========================================
+# TAB 5: LOW STOCK WARNINGS
+# ==========================================
+with tab_alerts:
+    st.subheader("⚠️ Low Stock Monitor")
+    threshold = st.number_input("Set Low Stock Threshold", min_value=1, value=5, step=1)
     
-    if not st.session_state.guest_inventory.empty:
-        if st.button("🗑️ Clear Temporary Data"):
-            st.session_state.guest_inventory = pd.DataFrame(columns=["id", "name", "price", "quantity", "category"])
-            st.rerun()
-
-# ==========================================
-# MODE 2: LOGGED-IN MODE (Permanent Cloud Storage)
-# ==========================================
-else:
-    st.subheader("☁️ Your Saved Cloud Inventory")
-
-    # Migration prompt for guest items
-    if not st.session_state.guest_inventory.empty:
-        if st.button("📥 Save Guest Items to Your Cloud Account"):
-            for _, row in st.session_state.guest_inventory.iterrows():
-                try:
-                    supabase.table("inventory").insert({
-                        "id": str(row["id"]),
-                        "name": row["name"],
-                        "price": row["price"],
-                        "quantity": row["quantity"],
-                        "category": row["category"],
-                        "user_id": st.session_state.user.id
-                    }).execute()
-                except Exception as e:
-                    st.error(f"Failed to migrate item '{row['name']}': {e}")
-            st.session_state.guest_inventory = pd.DataFrame(columns=["id", "name", "price", "quantity", "category"])
-            st.success("Guest items migrated into your Supabase database!")
-            st.rerun()
-
-    # Cloud Add Form
-    with st.form("cloud_add_form"):
-        col1, col2 = st.columns(2)
-        id = col1.text_input("Product ID (e.g. 111)")
-        name = col2.text_input("Product Name")
-        category = col1.text_input("Category")
-        price = col2.number_input("Price ($)", min_value=0.0)
-        quantity = col1.number_input("Quantity", min_value=0)
-        
-        if st.form_submit_button("Save Item to Cloud"):
-            if not name.strip() or not id.strip():
-                st.error("Please enter both Product ID and Product Name.")
-            else:
-                try:
-                    supabase.table("inventory").insert({
-                        "id": str(id),
-                        "name": name,
-                        "price": price,
-                        "quantity": quantity,
-                        "category": category,
-                        "user_id": st.session_state.user.id
-                    }).execute()
-                    st.success(f"Saved '{name}' to your account!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error saving to Supabase: {e}")
-
-    # Query items for logged in user
-    try:
-        response = supabase.table("inventory").select("*").eq("user_id", st.session_state.user.id).execute()
-        db_data = pd.DataFrame(response.data)
-        
-        if not db_data.empty:
-            cols_to_show = [col for col in ["id", "name", "category", "price", "quantity"] if col in db_data.columns]
-            st.dataframe(db_data[cols_to_show], use_container_width=True)
-            
-            with st.expander("🗑️ Delete Product"):
-                item_to_delete = st.selectbox("Select product to delete", db_data["name"].tolist())
-                if st.button("Delete Selected Item"):
-                    supabase.table("inventory").delete().eq("name", item_to_delete).eq("user_id", st.session_state.user.id).execute()
-                    st.success(f"Deleted '{item_to_delete}'")
-                    st.rerun()
+    if not inventory_df.empty:
+        low_stock_items = inventory_df[inventory_df["quantity"].astype(int) <= threshold]
+        if not low_stock_items.empty:
+            st.warning(f"Found {len(low_stock_items)} product(s) at or below threshold ({threshold}):")
+            st.dataframe(low_stock_items, use_container_width=True)
         else:
-            st.info("Your cloud inventory is empty right now. Add an item above to get started!")
-    except Exception as e:
-        st.error(f"Error fetching data from database: {e}")
+            st.success("All products have adequate stock!")
+    else:
+        st.info("Inventory is empty.")
+
+# ==========================================
+# TAB 6: EXPORT TO CSV
+# ==========================================
+with tab_export:
+    st.subheader("📥 Export Inventory Report")
+    if not inventory_df.empty:
+        csv_buffer = io.StringIO()
+        inventory_df.to_csv(csv_buffer, index=False)
+        st.download_button(
+            label="Download Inventory as CSV",
+            data=csv_buffer.getvalue(),
+            file_name="inventory_report.csv",
+            mime="text/csv"
+        )
+    else:
+        st.info("Nothing to export yet.")
