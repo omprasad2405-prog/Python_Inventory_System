@@ -17,7 +17,7 @@ if "user" not in st.session_state:
 
 if "guest_inventory" not in st.session_state:
     st.session_state.guest_inventory = pd.DataFrame(
-        columns=["product_id", "name", "price", "quantity", "category"]
+        columns=["id", "name", "price", "quantity", "category"]
     )
 
 # --- SIDEBAR: AUTHENTICATION PORTAL ---
@@ -69,18 +69,18 @@ if st.session_state.user is None:
 
     with st.form("guest_add_form"):
         col1, col2 = st.columns(2)
-        prod_id = col1.text_input("Product ID (e.g. PRD001)")
+        prod_id = col1.text_input("Product ID (e.g. 111)")
         name = col2.text_input("Product Name")
         category = col1.text_input("Category")
         price = col2.number_input("Price ($)", min_value=0.0)
         quantity = col1.number_input("Quantity", min_value=0)
         
         if st.form_submit_button("Add Temporary Item"):
-            if not name.strip():
-                st.error("Please enter a Product Name.")
+            if not name.strip() or not prod_id.strip():
+                st.error("Please enter both Product ID and Product Name.")
             else:
                 new_row = pd.DataFrame([{
-                    "product_id": prod_id, 
+                    "id": prod_id, 
                     "name": name, 
                     "price": price, 
                     "quantity": quantity, 
@@ -95,7 +95,7 @@ if st.session_state.user is None:
     
     if not st.session_state.guest_inventory.empty:
         if st.button("🗑️ Clear Temporary Data"):
-            st.session_state.guest_inventory = pd.DataFrame(columns=["product_id", "name", "price", "quantity", "category"])
+            st.session_state.guest_inventory = pd.DataFrame(columns=["id", "name", "price", "quantity", "category"])
             st.rerun()
 
 # ==========================================
@@ -110,7 +110,7 @@ else:
             for _, row in st.session_state.guest_inventory.iterrows():
                 try:
                     supabase.table("inventory").insert({
-                        "product_id": row["product_id"],
+                        "id": str(row["id"]),
                         "name": row["name"],
                         "price": row["price"],
                         "quantity": row["quantity"],
@@ -119,26 +119,26 @@ else:
                     }).execute()
                 except Exception as e:
                     st.error(f"Failed to migrate item '{row['name']}': {e}")
-            st.session_state.guest_inventory = pd.DataFrame(columns=["product_id", "name", "price", "quantity", "category"])
+            st.session_state.guest_inventory = pd.DataFrame(columns=["id", "name", "price", "quantity", "category"])
             st.success("Guest items migrated into your Supabase database!")
             st.rerun()
 
     # Cloud Add Form
     with st.form("cloud_add_form"):
         col1, col2 = st.columns(2)
-        prod_id = col1.text_input("Product ID (e.g. PRD001)")
+        id = col1.text_input("Product ID (e.g. 111)")
         name = col2.text_input("Product Name")
         category = col1.text_input("Category")
         price = col2.number_input("Price ($)", min_value=0.0)
         quantity = col1.number_input("Quantity", min_value=0)
         
         if st.form_submit_button("Save Item to Cloud"):
-            if not name.strip():
-                st.error("Please enter a Product Name.")
+            if not name.strip() or not id.strip():
+                st.error("Please enter both Product ID and Product Name.")
             else:
                 try:
                     supabase.table("inventory").insert({
-                        "product_id": prod_id,
+                        "id": str(id),
                         "name": name,
                         "price": price,
                         "quantity": quantity,
@@ -156,8 +156,7 @@ else:
         db_data = pd.DataFrame(response.data)
         
         if not db_data.empty:
-            # Display relevant columns
-            cols_to_show = [col for col in ["product_id", "name", "category", "price", "quantity"] if col in db_data.columns]
+            cols_to_show = [col for col in ["id", "name", "category", "price", "quantity"] if col in db_data.columns]
             st.dataframe(db_data[cols_to_show], use_container_width=True)
             
             with st.expander("🗑️ Delete Product"):
