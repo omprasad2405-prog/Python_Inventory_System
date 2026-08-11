@@ -1,9 +1,12 @@
 import os
 import io
-import streamlit as st
+import json
 import pandas as pd
+import streamlit as st
 from supabase import create_client
 from dotenv import load_dotenv
+from PIL import Image
+from google import genai
 
 load_dotenv()
 
@@ -20,6 +23,48 @@ if "guest_inventory" not in st.session_state:
     st.session_state.guest_inventory = pd.DataFrame(
         columns=["id", "name", "price", "quantity", "category"]
     )
+
+# AI Auto-fill State Defaults
+if "ai_name" not in st.session_state:
+    st.session_state.ai_name = ""
+if "ai_category" not in st.session_state:
+    st.session_state.ai_category = ""
+if "ai_price" not in st.session_state:
+    st.session_state.ai_price = 0.0
+
+# --- GEMINI AI HELPER FUNCTION ---
+def analyze_product_image(uploaded_file):
+    """Analyzes an uploaded image using Google Gemini API to pre-fill item details."""
+    api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        st.error("Missing GEMINI_API_KEY in environment/secrets!")
+        return None
+
+    try:
+        client = genai.Client(api_key=api_key)
+        img = Image.open(uploaded_file)
+        
+        prompt = """
+        Analyze this product image. Return ONLY a valid JSON object matching this structure:
+        {
+            "name": "Concise product name",
+            "category": "Suggested category (e.g. Beverages, Electronics, Snacks, Office Supplies, Household)",
+            "estimated_price": 0.00
+        }
+        Do not include markdown or extra commentary. Output raw JSON only.
+        """
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[img, prompt]
+        )
+
+        clean_json = response.text.strip().replace("```json", "").replace("```", "")
+        return json.loads(clean_json)
+    except Exception as e:
+        st.error(f"AI Extraction failed: {e}")
+        return None
+
 
 # --- SIDEBAR: AUTHENTICATION PORTAL ---
 st.sidebar.title("🔐 User Portal")
@@ -57,6 +102,7 @@ else:
         supabase.auth.sign_out()
         st.session_state.user = None
         st.rerun()
+
 
 # --- MAIN DASHBOARD AREA ---
 st.title("📦 Python Inventory Management System")
@@ -131,17 +177,34 @@ with tab_view:
         st.info("Inventory is currently empty.")
 
 # ==========================================
-# TAB 2: ADD PRODUCT
+# TAB 2: ADD PRODUCT (WITH AI VISION AUTOFILL)
 # ==========================================
 with tab_add:
     st.subheader("Add New Item")
+
+    # --- OPTIONAL AI IMAGE EXTRACTION ---
+    with st.expander("📸 Optional: Auto-fill fields using AI Image Recognition", expanded=False):
+        uploaded_image = st.file_uploader("Upload product photo", type=["jpg", "jpeg", "png", "webp"])
+        if uploaded_image is not None:
+            st.image(uploaded_image, caption="Uploaded Product", width=180)
+            if st.button("✨ Extract Product Data with AI"):
+                with st.spinner("Analyzing image using Gemini..."):
+                    result = analyze_product_image(uploaded_image)
+                    if result:
+                        st.session_state.ai_name = result.get("name", "")
+                        st.session_state.ai_category = result.get("category", "")
+                        st.session_state.ai_price = float(result.get("estimated_price", 0.0))
+                        st.success("Extracted details! Check pre-filled values in form below.")
+                        st.rerun()
+
+    # --- STANDARD PRODUCT FORM ---
     with st.form("add_product_form"):
         col1, col2 = st.columns(2)
         prod_id = col1.text_input("Product ID (e.g. 111)")
-        name = col2.text_input("Product Name")
-        category = col1.text_input("Category")
-        price = col2.number_input("Price ($)", min_value=0.0, step=0.5)
-        quantity = col1.number_input("Initial Quantity", min_value=0, step=1)
+        name = col2.text_input("Product Name", value=st.session_state.ai_name)
+        category = col1.text_input("Category", value=st.session_state.ai_category)
+        price = col2.number_input("Price ($)", min_value=0.0, value=st.session_state.ai_price, step=0.5)
+        quantity = col1.number_input("Initial Quantity", min_value=0, value=10, step=1)
         
         if st.form_submit_button("Add Item"):
             if not name.strip() or not prod_id.strip():
@@ -158,7 +221,6 @@ with tab_add:
                             "user_id": st.session_state.user.id
                         }).execute()
                         st.success(f"Saved '{name}' to your cloud inventory!")
-                        st.rerun()
                     except Exception as e:
                         st.error(f"Database error: {e}")
                 else:
@@ -171,7 +233,12 @@ with tab_add:
                     }])
                     st.session_state.guest_inventory = pd.concat([st.session_state.guest_inventory, new_row], ignore_index=True)
                     st.success(f"Added '{name}' to temporary memory!")
-                    st.rerun()
+                
+                # Reset state after saving
+                st.session_state.ai_name = ""
+                st.session_state.ai_category = ""
+                st.session_state.ai_price = 0.0
+                st.rerun()
 
 # ==========================================
 # TAB 3: PROCESS SALE
