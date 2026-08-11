@@ -55,7 +55,7 @@ def analyze_product_image(uploaded_file):
         """
 
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-1.5-flash",
             contents=[img, prompt]
         )
 
