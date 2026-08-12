@@ -2,6 +2,8 @@
 
 A full-stack, cloud-connected inventory management web application built with **Streamlit**, **Supabase (PostgreSQL)**, and **Google Gemini AI**.
 
+🚀 **Live Demo:** [Open Web Application](https://pythoninventorysystem.streamlit.app/)) 
+
 ---
 
 ## ✨ Features
