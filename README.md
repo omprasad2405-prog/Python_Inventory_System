@@ -27,6 +27,27 @@ A full-stack, cloud-connected inventory management web application built with **
 
 ### 1. Clone the repository
 ```bash
-  git clone [https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git)
-  cd YOUR_REPO_NAME
+git clone [https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git)
+cd YOUR_REPO_NAME
 
+### 2.Install dependencies
+pip install -r requirements.txt
+
+### 3. Set up Environment Variables (.env)
+Create a .env file in the root directory and add your keys:
+
+SUPABASE_URL="your-supabase-url"
+SUPABASE_KEY="your-supabase-key"
+GEMINI_API_KEY="your-gemini-api-key"
+
+### 4. Run the Streamlit application
+streamlit run app.py
+
+
+📋 Dependencies (requirements.txt)
+streamlit
+pandas
+supabase
+python-dotenv
+google-genai
+pillow
