@@ -1,49 +1,32 @@
-# 📦 Cloud Inventory Management System
+# 📦 Python AI-Powered Inventory Management System
 
-A full-stack Inventory Management System featuring a **Streamlit Web Dashboard**, a **Python CLI terminal interface**, and a **Supabase PostgreSQL Cloud Database**. 
-
-🚀 **Live Demo:** [Open Web Application](https://pythoninventorysystem.streamlit.app/)) 
-
+A full-stack, cloud-connected inventory management web application built with **Streamlit**, **Supabase (PostgreSQL)**, and **Google Gemini AI**.
 
 ---
 
-## 📌 Project Overview
+## ✨ Features
 
-This project provides a real-time inventory management tool built using Python and modern cloud infrastructure:
-
-- **Real-Time Cloud Sync:** All stock additions, sales updates, and deletions reflect instantly across both the web app and terminal interface.
-- **Automated Sales & Stock Management:** Automatically verifies remaining quantity during checkout and updates database records in real time.
-- **Low-Stock Warnings:** Highlights items falling below minimum stock thresholds (under 5 units).
-- **Data Export:** Exports cloud database records directly into `.csv` spreadsheet reports.
+- 🔐 **Dual-Mode Authentication:** Real-time user login via Supabase Auth + Session-based Guest RAM mode for instant demo testing.
+- 📦 **Complete CRUD Operations:** Real-time stock tracking, low stock monitoring, sales processing, stock adjustments, and CSV report export.
+- 📸 **Phase 1 — AI Vision Autofill:** Upload product photos to automatically extract item name, category, and estimated price using **Google Gemini AI**.
+- 🤖 **Phase 2 — AI Inventory Assistant (In Progress):** Interactive natural language chatbot to query stock levels, sales insights, and operational metrics.
 
 ---
-
-
-## 🏗️ Build Your Own Version (How It Works)
-
-If you want to build a similar project for your portfolio, here is the architecture:
-
-1. **Database Setup:**
-   - Create a free account at [Supabase](https://supabase.com/).
-   - Create a table named `inventory` with the columns: `id` (text/int), `name` (text), `price` (float), `quantity` (int), and `category` (text).
-
-2. **Backend & CLI:**
-   - Use `supabase-py` to connect Python script handles (`inventory.py`) for CRUD operations.
-   - Use `python-dotenv` to keep your `SUPABASE_URL` and `SUPABASE_KEY` secure in a `.env` file.
-
-3. **Web Dashboard:**
-   - Build an interactive frontend UI with [Streamlit](https://streamlit.io/) (`app.py`).
-
-4. **Free Cloud Deployment:**
-   - Push your code to a GitHub repository (excluding your `.env` file).
-   - Link your repository to [Streamlit Community Cloud](https://share.streamlit.io/) to get a free live web URL.
-
----
-
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** Streamlit
-- **Database:** Supabase (PostgreSQL)
-- **Language:** Python 3.x
-- **Libraries:** `supabase`, `pandas`, `tabulate`, `python-dotenv`
+- **Frontend / UI Framework:** [Streamlit](https://streamlit.io/)
+- **Database & Auth:** [Supabase](https://supabase.com/)
+- **AI Engine:** [Google Gemini API (`google-genai`)](https://ai.google.dev/)
+- **Data Processing:** [Pandas](https://pandas.pydata.org/)
+- **Language:** Python 3.10+
+
+---
+
+## 🚀 Getting Started Locally
+
+### 1. Clone the repository
+```bash
+  git clone [https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git)
+  cd YOUR_REPO_NAME
+
