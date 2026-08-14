@@ -32,7 +32,8 @@ if "ai_category" not in st.session_state:
 if "ai_price" not in st.session_state:
     st.session_state.ai_price = 0.0
 
-# --- GEMINI AI HELPER FUNCTION ---
+# --- GEMINI AI HELPER FUNCTIONS ---
+
 def analyze_product_image(uploaded_file):
     """Analyzes an uploaded image using Google Gemini API to pre-fill item details."""
     api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
@@ -64,6 +65,40 @@ def analyze_product_image(uploaded_file):
     except Exception as e:
         st.error(f"AI Extraction failed: {e}")
         return None
+
+
+def ask_inventory_ai(user_query, df):
+    """Answers natural language questions about the current inventory using Gemini."""
+    api_key = st.secrets.get("GEMINI_API_KEY") or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return "Missing GEMINI_API_KEY in environment/secrets!"
+
+    try:
+        client = genai.Client(api_key=api_key)
+        
+        # Convert DataFrame to JSON string so Gemini can analyze it directly
+        inventory_context = df.to_json(orient="records") if not df.empty else "[]"
+        
+        prompt = f"""
+        You are an intelligent inventory management assistant.
+        Below is the current inventory dataset in JSON format:
+        {inventory_context}
+        
+        User Question: "{user_query}"
+        
+        Instructions:
+        1. Base your answer STRICTLY on the provided inventory data.
+        2. If the data is empty, mention that the inventory is currently empty.
+        3. Be concise, professional, and directly answer the question using clear formatting (bullet points, bold text, etc.).
+        """
+
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        return response.text
+    except Exception as e:
+        return f"Error contacting AI: {e}"
 
 
 # --- SIDEBAR: AUTHENTICATION PORTAL ---
@@ -150,13 +185,14 @@ if is_logged_in and not st.session_state.guest_inventory.empty:
         st.rerun()
 
 # --- NAVIGATION TABS ---
-tab_view, tab_add, tab_sale, tab_update, tab_alerts, tab_export = st.tabs([
+tab_view, tab_add, tab_sale, tab_update, tab_alerts, tab_export, tab_chat = st.tabs([
     "📋 View All Products", 
     "➕ Add Product", 
     "💰 Process Sale", 
     "🔄 Update Stock", 
     "⚠️ Low Stock Alerts", 
-    "📥 Export CSV"
+    "📥 Export CSV",
+    "🤖 AI Assistant"
 ])
 
 # ==========================================
@@ -338,3 +374,33 @@ with tab_export:
         )
     else:
         st.info("Nothing to export yet.")
+
+# ==========================================
+# TAB 7: AI INVENTORY ASSISTANT
+# ==========================================
+with tab_chat:
+    st.subheader("🤖 Chat with Your Inventory")
+    st.caption("Ask questions about stock levels, valuation, pricing, or request selling advice.")
+
+    # Initialize chat history in session state
+    if "chat_messages" not in st.session_state:
+        st.session_state.chat_messages = [
+            {"role": "assistant", "content": "Hello! Ask me anything about your current inventory."}
+        ]
+
+    # Render past chat messages
+    for msg in st.session_state.chat_messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    # Process new prompt
+    if user_prompt := st.chat_input("Ask something (e.g., 'Which items need restocking?')..."):
+        st.session_state.chat_messages.append({"role": "user", "content": user_prompt})
+        with st.chat_message("user"):
+            st.markdown(user_prompt)
+
+        with st.chat_message("assistant"):
+            with st.spinner("Analyzing inventory..."):
+                reply = ask_inventory_ai(user_prompt, inventory_df)
+                st.markdown(reply)
+                st.session_state.chat_messages.append({"role": "assistant", "content": reply})
