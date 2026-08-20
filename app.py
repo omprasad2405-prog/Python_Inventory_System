@@ -10,6 +10,13 @@ from google import genai
 
 load_dotenv()
 
+# --- STREAMLIT PAGE CONFIG ---
+st.set_page_config(
+    page_title="AI Inventory System",
+    page_icon="📦",
+    layout="wide"
+)
+
 # --- CONNECT TO SUPABASE ---
 url = st.secrets.get("SUPABASE_URL") or os.getenv("SUPABASE_URL")
 key = st.secrets.get("SUPABASE_KEY") or os.getenv("SUPABASE_KEY")
@@ -76,7 +83,6 @@ def ask_inventory_ai(user_query, df):
     try:
         client = genai.Client(api_key=api_key)
         
-        # Convert DataFrame to JSON string so Gemini can analyze it directly
         inventory_context = df.to_json(orient="records") if not df.empty else "[]"
         
         prompt = f"""
@@ -101,15 +107,37 @@ def ask_inventory_ai(user_query, df):
         return f"Error contacting AI: {e}"
 
 
-# --- SIDEBAR: AUTHENTICATION PORTAL ---
-st.sidebar.title("🔐 User Portal")
+# --- HELPER: FETCH DATA ---
+def get_cloud_inventory():
+    try:
+        res = supabase.table("inventory").select("*").eq("user_id", st.session_state.user.id).execute()
+        df = pd.DataFrame(res.data)
+        if not df.empty:
+            cols = [c for c in ["id", "name", "category", "price", "quantity"] if c in df.columns]
+            return df[cols]
+        return pd.DataFrame(columns=["id", "name", "price", "quantity", "category"])
+    except Exception as e:
+        st.error(f"Error fetching data: {e}")
+        return pd.DataFrame(columns=["id", "name", "price", "quantity", "category"])
+
+
+is_logged_in = st.session_state.user is not None
+
+if is_logged_in:
+    inventory_df = get_cloud_inventory()
+else:
+    inventory_df = st.session_state.guest_inventory
+
+
+# --- SIDEBAR: AUTHENTICATION & AI ASSISTANT ---
+st.sidebar.title("🔐 Account & Tools")
 
 if st.session_state.user is None:
-    st.sidebar.info("💡 **You are in Guest Mode**\nTry testing features! Your changes will disappear when you close or refresh the tab.")
+    st.sidebar.info("💡 **Guest Mode Active**\nChanges persist in RAM during session.")
     
-    tab1, tab2 = st.sidebar.tabs(["Log In", "Sign Up"])
+    tab_login, tab_signup = st.sidebar.tabs(["Log In", "Sign Up"])
     
-    with tab1:
+    with tab_login:
         login_email = st.text_input("Email", key="log_email")
         login_pass = st.text_input("Password", type="password", key="log_pass")
         if st.sidebar.button("Log In"):
@@ -121,7 +149,7 @@ if st.session_state.user is None:
             except Exception as e:
                 st.sidebar.error("Invalid email or password.")
 
-    with tab2:
+    with tab_signup:
         signup_email = st.text_input("Email", key="sign_email")
         signup_pass = st.text_input("Password", type="password", key="sign_pass")
         if st.sidebar.button("Create Account"):
@@ -138,36 +166,41 @@ else:
         st.session_state.user = None
         st.rerun()
 
+st.sidebar.markdown("---")
 
-# --- MAIN DASHBOARD AREA ---
-st.title("📦 Python Inventory Management System")
+# --- SIDEBAR ACCESSIBLE AI CHATBOT ---
+with st.sidebar.expander("🤖 **AI Inventory Assistant**", expanded=True):
+    st.caption("Ask questions about stock, valuation, or low inventory.")
+    
+    if "chat_messages" not in st.session_state:
+        st.session_state.chat_messages = [
+            {"role": "assistant", "content": "Hi! Ask me anything about your stock."}
+        ]
 
-# Helper to fetch current cloud inventory
-def get_cloud_inventory():
-    try:
-        res = supabase.table("inventory").select("*").eq("user_id", st.session_state.user.id).execute()
-        df = pd.DataFrame(res.data)
-        if not df.empty:
-            cols = [c for c in ["id", "name", "category", "price", "quantity"] if c in df.columns]
-            return df[cols]
-        return pd.DataFrame(columns=["id", "name", "price", "quantity", "category"])
-    except Exception as e:
-        st.error(f"Error fetching data: {e}")
-        return pd.DataFrame(columns=["id", "name", "price", "quantity", "category"])
+    chat_container = st.container(height=250)
+    with chat_container:
+        for msg in st.session_state.chat_messages:
+            st.chat_message(msg["role"]).write(msg["content"])
 
-# Determine active dataframe based on login state
-is_logged_in = st.session_state.user is not None
+    if user_prompt := st.chat_input("Ask AI..."):
+        st.session_state.chat_messages.append({"role": "user", "content": user_prompt})
+        
+        reply = ask_inventory_ai(user_prompt, inventory_df)
+        st.session_state.chat_messages.append({"role": "assistant", "content": reply})
+        st.rerun()
+
+
+# --- MAIN DASHBOARD HEADER & KPI BANNER ---
+st.title("📦 Smart Inventory Manager")
 
 if is_logged_in:
-    inventory_df = get_cloud_inventory()
-    st.caption("☁️ Operating on **Supabase Cloud Database**")
+    st.caption("☁️ Connected to **Supabase Cloud Database**")
 else:
-    inventory_df = st.session_state.guest_inventory
-    st.caption("🧪 Operating in **Temporary Guest RAM**")
+    st.caption("🧪 Operating in **Temporary Guest Session**")
 
 # Migration Option for Guests Logging In
 if is_logged_in and not st.session_state.guest_inventory.empty:
-    if st.button("📥 Import Temporary Guest Items to Your Cloud Account"):
+    if st.button("📥 Import Guest Items to Cloud Account"):
         for _, row in st.session_state.guest_inventory.iterrows():
             try:
                 supabase.table("inventory").insert({
@@ -184,24 +217,38 @@ if is_logged_in and not st.session_state.guest_inventory.empty:
         st.success("Guest items migrated into Cloud!")
         st.rerun()
 
-# --- NAVIGATION TABS ---
-tab_view, tab_add, tab_sale, tab_update, tab_alerts, tab_export, tab_chat = st.tabs([
-    "📋 View All Products", 
+# --- PROFESSIONAL KPI METRICS BANNER ---
+total_items = len(inventory_df) if not inventory_df.empty else 0
+total_qty = int(inventory_df["quantity"].sum()) if not inventory_df.empty else 0
+total_val = float((inventory_df["price"].astype(float) * inventory_df["quantity"].astype(int)).sum()) if not inventory_df.empty else 0.0
+low_stock_count = len(inventory_df[inventory_df["quantity"].astype(int) <= 5]) if not inventory_df.empty else 0
+
+m1, m2, m3, m4 = st.columns(4)
+m1.metric("Unique Products", f"{total_items}")
+m2.metric("Total Stock Count", f"{total_qty} units")
+m3.metric("Total Inventory Value", f"${total_val:,.2f}")
+m4.metric("Low Stock Items (≤5)", f"{low_stock_count}", delta_color="inverse")
+
+st.markdown("---")
+
+# --- CONSOLIDATED TOP NAVIGATION TABS ---
+tab_view, tab_add, tab_manage, tab_alerts, tab_export = st.tabs([
+    "📋 Inventory Stock", 
     "➕ Add Product", 
-    "💰 Process Sale", 
-    "🔄 Update Stock", 
-    "⚠️ Low Stock Alerts", 
-    "📥 Export CSV",
-    "🤖 AI Assistant"
+    "⚙️ Operations (Sale/Update/Delete)", 
+    "⚠️ Low Stock Monitor", 
+    "📥 Reports & Export"
 ])
 
 # ==========================================
-# TAB 1: VIEW ALL PRODUCTS
+# TAB 1: VIEW INVENTORY
 # ==========================================
 with tab_view:
-    st.subheader("Current Stock Inventory")
+    st.subheader("Current Inventory Stock")
     if not inventory_df.empty:
-        search_query = st.text_input("🔍 Search products by name or category")
+        col_search, col_filter = st.columns([3, 1])
+        search_query = col_search.text_input("🔍 Search products by name or category")
+        
         filtered_df = inventory_df
         if search_query:
             filtered_df = inventory_df[
@@ -216,33 +263,31 @@ with tab_view:
 # TAB 2: ADD PRODUCT (WITH AI VISION AUTOFILL)
 # ==========================================
 with tab_add:
-    st.subheader("Add New Item")
+    st.subheader("Add New Product")
 
-    # --- OPTIONAL AI IMAGE EXTRACTION ---
-    with st.expander("📸 Optional: Auto-fill fields using AI Image Recognition", expanded=False):
+    with st.expander("📸 Smart Auto-fill: Upload product image for AI extraction", expanded=False):
         uploaded_image = st.file_uploader("Upload product photo", type=["jpg", "jpeg", "png", "webp"])
         if uploaded_image is not None:
             st.image(uploaded_image, caption="Uploaded Product", width=180)
-            if st.button("✨ Extract Product Data with AI"):
-                with st.spinner("Analyzing image using Gemini..."):
+            if st.button("✨ Extract Details with Gemini Vision"):
+                with st.spinner("Analyzing image..."):
                     result = analyze_product_image(uploaded_image)
                     if result:
                         st.session_state.ai_name = result.get("name", "")
                         st.session_state.ai_category = result.get("category", "")
                         st.session_state.ai_price = float(result.get("estimated_price", 0.0))
-                        st.success("Extracted details! Check pre-filled values in form below.")
+                        st.success("Extracted details! Form pre-filled below.")
                         st.rerun()
 
-    # --- STANDARD PRODUCT FORM ---
     with st.form("add_product_form"):
         col1, col2 = st.columns(2)
-        prod_id = col1.text_input("Product ID (e.g. 111)")
+        prod_id = col1.text_input("Product ID (e.g. 101)")
         name = col2.text_input("Product Name", value=st.session_state.ai_name)
         category = col1.text_input("Category", value=st.session_state.ai_category)
         price = col2.number_input("Price ($)", min_value=0.0, value=st.session_state.ai_price, step=0.5)
         quantity = col1.number_input("Initial Quantity", min_value=0, value=10, step=1)
         
-        if st.form_submit_button("Add Item"):
+        if st.form_submit_button("Add Item to Inventory"):
             if not name.strip() or not prod_id.strip():
                 st.error("Please provide both Product ID and Product Name.")
             else:
@@ -256,7 +301,7 @@ with tab_add:
                             "category": category,
                             "user_id": st.session_state.user.id
                         }).execute()
-                        st.success(f"Saved '{name}' to your cloud inventory!")
+                        st.success(f"Saved '{name}' to Cloud Database!")
                     except Exception as e:
                         st.error(f"Database error: {e}")
                 else:
@@ -268,31 +313,31 @@ with tab_add:
                         "category": category
                     }])
                     st.session_state.guest_inventory = pd.concat([st.session_state.guest_inventory, new_row], ignore_index=True)
-                    st.success(f"Added '{name}' to temporary memory!")
+                    st.success(f"Added '{name}' to session memory!")
                 
-                # Reset state after saving
                 st.session_state.ai_name = ""
                 st.session_state.ai_category = ""
                 st.session_state.ai_price = 0.0
                 st.rerun()
 
 # ==========================================
-# TAB 3: PROCESS SALE
+# TAB 3: OPERATIONS (SALE / UPDATE / DELETE)
 # ==========================================
-with tab_sale:
-    st.subheader("Process a Sale")
+with tab_manage:
+    st.subheader("Manage Inventory Operations")
+    
     if not inventory_df.empty:
-        selected_item = st.selectbox("Select Product to Sell", inventory_df["name"].tolist(), key="sale_item")
-        item_data = inventory_df[inventory_df["name"] == selected_item].iloc[0]
-        current_qty = int(item_data["quantity"])
+        op_sale, op_update, op_delete = st.tabs(["💰 Process Sale", "🔄 Restock / Adjust", "🗑️ Delete Product"])
         
-        st.write(f"**Available Quantity:** {current_qty} | **Price per unit:** ${float(item_data['price']):.2f}")
-        sale_qty = st.number_input("Quantity Sold", min_value=1, max_value=max(1, current_qty), step=1)
-        
-        if st.button("Complete Sale"):
-            if sale_qty > current_qty:
-                st.error("Not enough stock available!")
-            else:
+        with op_sale:
+            selected_item = st.selectbox("Select Product to Sell", inventory_df["name"].tolist(), key="sale_item")
+            item_data = inventory_df[inventory_df["name"] == selected_item].iloc[0]
+            current_qty = int(item_data["quantity"])
+            
+            st.write(f"**Current Stock:** {current_qty} | **Price:** ${float(item_data['price']):.2f}")
+            sale_qty = st.number_input("Quantity Sold", min_value=1, max_value=max(1, current_qty), step=1)
+            
+            if st.button("Complete Transaction"):
                 new_qty = current_qty - sale_qty
                 if is_logged_in:
                     supabase.table("inventory").update({"quantity": new_qty}).eq("id", str(item_data["id"])).eq("user_id", st.session_state.user.id).execute()
@@ -302,24 +347,13 @@ with tab_sale:
                 total_sale = sale_qty * float(item_data["price"])
                 st.success(f"Sold {sale_qty} x '{selected_item}' for ${total_sale:.2f}!")
                 st.rerun()
-    else:
-        st.info("Add products to inventory before processing sales.")
 
-# ==========================================
-# TAB 4: UPDATE STOCKS & DELETE
-# ==========================================
-with tab_update:
-    st.subheader("Update Stock Levels / Delete Product")
-    if not inventory_df.empty:
-        col_up1, col_up2 = st.columns(2)
-        
-        with col_up1:
-            st.markdown("### 🔄 Restock / Adjust Quantity")
+        with op_update:
             update_item = st.selectbox("Select Product", inventory_df["name"].tolist(), key="update_select")
             item_data = inventory_df[inventory_df["name"] == update_item].iloc[0]
             new_stock = st.number_input("Set New Quantity", min_value=0, value=int(item_data["quantity"]), step=1)
             
-            if st.button("Update Stock"):
+            if st.button("Update Stock Quantity"):
                 if is_logged_in:
                     supabase.table("inventory").update({"quantity": int(new_stock)}).eq("id", str(item_data["id"])).eq("user_id", st.session_state.user.id).execute()
                 else:
@@ -327,26 +361,25 @@ with tab_update:
                 st.success(f"Updated quantity of '{update_item}' to {new_stock}!")
                 st.rerun()
 
-        with col_up2:
-            st.markdown("### 🗑️ Delete Product")
-            delete_item = st.selectbox("Select Product to Delete", inventory_df["name"].tolist(), key="delete_select")
-            if st.button("Delete Selected Product", type="primary"):
+        with op_delete:
+            delete_item = st.selectbox("Select Product to Remove", inventory_df["name"].tolist(), key="delete_select")
+            if st.button("Delete Product", type="primary"):
                 del_data = inventory_df[inventory_df["name"] == delete_item].iloc[0]
                 if is_logged_in:
                     supabase.table("inventory").delete().eq("id", str(del_data["id"])).eq("user_id", st.session_state.user.id).execute()
                 else:
                     st.session_state.guest_inventory = st.session_state.guest_inventory[st.session_state.guest_inventory["name"] != delete_item]
-                st.success(f"Deleted '{delete_item}'")
+                st.success(f"Removed '{delete_item}' from database.")
                 st.rerun()
     else:
-        st.info("Inventory is empty.")
+        st.info("No items in inventory to operate on.")
 
 # ==========================================
-# TAB 5: LOW STOCK WARNINGS
+# TAB 4: LOW STOCK MONITOR
 # ==========================================
 with tab_alerts:
     st.subheader("⚠️ Low Stock Monitor")
-    threshold = st.number_input("Set Low Stock Threshold", min_value=1, value=5, step=1)
+    threshold = st.number_input("Set Alert Threshold Quantity", min_value=1, value=5, step=1)
     
     if not inventory_df.empty:
         low_stock_items = inventory_df[inventory_df["quantity"].astype(int) <= threshold]
@@ -354,53 +387,23 @@ with tab_alerts:
             st.warning(f"Found {len(low_stock_items)} product(s) at or below threshold ({threshold}):")
             st.dataframe(low_stock_items, use_container_width=True)
         else:
-            st.success("All products have adequate stock!")
+            st.success("All products currently have healthy stock levels!")
     else:
         st.info("Inventory is empty.")
 
 # ==========================================
-# TAB 6: EXPORT TO CSV
+# TAB 5: REPORTS & EXPORT
 # ==========================================
 with tab_export:
-    st.subheader("📥 Export Inventory Report")
+    st.subheader("📥 Export Reports")
     if not inventory_df.empty:
         csv_buffer = io.StringIO()
         inventory_df.to_csv(csv_buffer, index=False)
         st.download_button(
-            label="Download Inventory as CSV",
+            label="Download Inventory CSV Report",
             data=csv_buffer.getvalue(),
             file_name="inventory_report.csv",
             mime="text/csv"
         )
     else:
-        st.info("Nothing to export yet.")
-
-# ==========================================
-# TAB 7: AI INVENTORY ASSISTANT
-# ==========================================
-with tab_chat:
-    st.subheader("🤖 Chat with Your Inventory")
-    st.caption("Ask questions about stock levels, valuation, pricing, or request selling advice.")
-
-    # Initialize chat history in session state
-    if "chat_messages" not in st.session_state:
-        st.session_state.chat_messages = [
-            {"role": "assistant", "content": "Hello! Ask me anything about your current inventory."}
-        ]
-
-    # Render past chat messages
-    for msg in st.session_state.chat_messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-
-    # Process new prompt
-    if user_prompt := st.chat_input("Ask something (e.g., 'Which items need restocking?')..."):
-        st.session_state.chat_messages.append({"role": "user", "content": user_prompt})
-        with st.chat_message("user"):
-            st.markdown(user_prompt)
-
-        with st.chat_message("assistant"):
-            with st.spinner("Analyzing inventory..."):
-                reply = ask_inventory_ai(user_prompt, inventory_df)
-                st.markdown(reply)
-                st.session_state.chat_messages.append({"role": "assistant", "content": reply})
+        st.info("No data available to export.")
