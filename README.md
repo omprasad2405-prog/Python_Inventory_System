@@ -42,7 +42,15 @@ SUPABASE_URL="your-supabase-url"
 SUPABASE_KEY="your-supabase-key"
 GEMINI_API_KEY="your-gemini-api-key"
 
-### 4. Run the Streamlit application
+### 4. Set up local secrets:
+Create a .streamlit/secrets.toml file in the root directory:
+
+Ini, TOML
+SUPABASE_URL = "your_supabase_url"
+SUPABASE_KEY = "your_supabase_anon_key"
+GEMINI_API_KEY = "your_gemini_api_key"
+
+### 5. Run the Streamlit application
 streamlit run app.py
 
 
